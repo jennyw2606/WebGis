@@ -26,9 +26,9 @@
 
   // ---------- peta ----------
   const map = L.map("map", { zoomSnap: 0.25 });
-  L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png", {
-    maxZoom: 18, subdomains: "abcd",
-    attribution: "&copy; OpenStreetMap contributors &copy; CARTO | Batas: BIG",
+  L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    maxZoom: 19,
+    attribution: "&copy; OpenStreetMap contributors | Batas: BIG",
   }).addTo(map);
 
   const byName = {};
