@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Akses IGD Kabupaten Pati</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<style>
+  :root{--ink:#1f2933;--muted:#5b6b79;--line:#dde3e8;--bg:#f6f8f9;--card:#ffffff;--accent:#0f766e;--warn:#c2410c;}
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;font:14px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:var(--ink);background:var(--bg)}
+  #app{display:flex;height:100vh}
+  #panel{width:380px;max-width:100%;overflow-y:auto;background:var(--card);border-right:1px solid var(--line);padding:16px}
+  #map{flex:1;min-height:300px}
+  h1{font-size:18px;margin:0 0 4px}
+  h2{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:18px 0 8px}
+  .sub{color:var(--muted);margin:0}
+  .seg{display:flex;gap:6px}
+  .seg button{flex:1;padding:8px 0;border:1px solid var(--line);background:#fff;border-radius:8px;font:inherit;cursor:pointer;color:var(--ink)}
+  .seg button.on{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
+  .cards{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .card{border:1px solid var(--line);border-radius:10px;padding:10px;background:#fff}
+  .card b{display:block;font-size:22px;line-height:1.1}
+  .card span{color:var(--muted);font-size:12px}
+  label.row{display:flex;gap:8px;align-items:center;margin:4px 0;cursor:pointer}
+  table{width:100%;border-collapse:collapse}
+  td,th{padding:5px 4px;border-bottom:1px solid var(--line);text-align:left;font-weight:normal}
+  tr.k{cursor:pointer} tr.k:hover{background:var(--bg)}
+  .bar{height:8px;border-radius:4px;background:#e8eef0;overflow:hidden;min-width:70px}
+  .bar i{display:block;height:100%;background:var(--accent)}
+  .pct{text-align:right;white-space:nowrap;width:48px}
+  details{border:1px solid var(--line);border-radius:10px;padding:8px 10px;background:#fff}
+  summary{cursor:pointer;font-weight:600}
+  input[type=password],input[type=text],input[type=number]{width:100%;padding:8px;border:1px solid var(--line);border-radius:8px;font:inherit}
+  button.act{padding:8px 12px;border:0;border-radius:8px;background:var(--accent);color:#fff;font:inherit;cursor:pointer;margin:6px 6px 0 0}
+  button.act.alt{background:#fff;color:var(--ink);border:1px solid var(--line)}
+  button.act:disabled{opacity:.5;cursor:default}
+  .badge{display:inline-block;padding:2px 8px;border-radius:999px;font-size:12px;background:#e6f4f1;color:var(--accent)}
+  .badge.warn{background:#fdeee6;color:var(--warn)}
+  .note{color:var(--muted);font-size:12px}
+  .legend{display:flex;gap:2px;margin-top:6px}
+  .legend i{flex:1;height:10px}
+  .legend-l{display:flex;justify-content:space-between;color:var(--muted);font-size:11px}
+  .rsicon{background:#b91c1c;color:#fff;font-weight:700;width:22px;height:22px;line-height:22px;text-align:center;border-radius:5px;border:2px solid #fff;box-shadow:0 0 0 1px #0004}
+  .rsicon.luar{background:#6b7280}
+  #status{min-height:18px;margin-top:6px;font-size:12px}
+  @media (max-width:800px){
+    #app{flex-direction:column;height:auto}
+    #map{order:-1;height:55vh;flex:none}
+    #panel{width:100%;border-right:0}
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <aside id="panel">
+    <h1>Akses IGD Kabupaten Pati</h1>
+    <p class="sub">Berapa luas wilayah yang dapat dijangkau dari rumah sakit dengan IGD dalam waktu tertentu?</p>
+
+    <h2>Batas waktu tempuh</h2>
+    <div class="seg" id="seg">
+      <button data-m="15">15 menit</button>
+      <button data-m="30" class="on">30 menit</button>
+      <button data-m="60">60 menit</button>
+    </div>
+    <p style="margin:8px 0 0"><span class="badge" id="sumberBadge"></span></p>
+
+    <h2>Ringkasan</h2>
+    <div class="cards">
+      <div class="card"><b id="sLuas">-</b><span>luas wilayah terjangkau</span></div>
+      <div class="card"><b id="sKec">-</b><span>kecamatan terjangkau &lt; 50%</span></div>
+      <div class="card" id="cardPend" style="display:none;grid-column:span 2"><b id="sPend">-</b><span>perkiraan penduduk terjangkau</span></div>
+    </div>
+
+    <h2>Lapisan</h2>
+    <label class="row"><input type="checkbox" id="lKec" checked> Kecamatan (warna = % terjangkau)</label>
+    <label class="row"><input type="checkbox" id="lIso" checked> Area jangkauan IGD</label>
+    <label class="row"><input type="checkbox" id="lRs" checked> Rumah sakit (IGD)</label>
+    <label class="row"><input type="checkbox" id="lPkm" checked> Puskesmas</label>
+    <label class="row"><input type="checkbox" id="lLuar"> Hitung juga RS di luar Kab. Pati (Kudus, Jepara)</label>
+
+    <h2>Terjangkau per kecamatan</h2>
+    <div class="legend" id="legend"></div>
+    <div class="legend-l"><span>0%</span><span>100%</span></div>
+    <table id="tbl" style="margin-top:8px"></table>
+
+    <h2>Isokron &amp; rute (OpenRouteService)</h2>
+    <details>
+      <summary>Hitung isokron dan rute ke IGD terdekat</summary>
+      <p class="note">Masukkan API key OpenRouteService milikmu. Key hanya disimpan di browser ini dan tidak ikut terunggah.</p>
+      <input type="password" id="key" placeholder="API key ORS" autocomplete="off">
+      <button class="act" id="btnIso">Hitung isokron semua RS</button>
+      <button class="act alt" id="btnDl" disabled>Unduh hasil (isokron.js)</button>
+      <label class="row"><input type="checkbox" id="lRoute"> Klik peta untuk rute ke IGD terdekat</label>
+      <div id="status" class="note"></div>
+      <div id="speedBox">
+        <p class="note" style="margin-top:10px">Selama isokron belum dihitung, peta memakai <b>perkiraan radius garis lurus</b>. Kecepatan rata-rata yang diasumsikan:</p>
+        <input type="number" id="speed" min="15" max="60" value="30"> km/jam
+      </div>
+    </details>
+
+    <h2>Catatan metode</h2>
+    <p class="note">Wilayah terjangkau dihitung dari titik sampel setiap ±500 m di dalam batas kecamatan, dengan asumsi penduduk tersebar merata. Isokron dihitung dari jaringan jalan OpenStreetMap tanpa memperhitungkan kemacetan, sehingga waktu ambulans bisa lebih cepat. Semua RS di daftar dianggap memiliki IGD 24 jam (Profil Kesehatan Pati 2022). RS di luar kabupaten ditampilkan abu-abu sebagai pembanding wilayah perbatasan.</p>
+    <p class="note">Sumber: Batas kecamatan BIG (Juni 2026); daftar faskes Profil Kesehatan Kab. Pati 2022; koordinat Google Maps dan OpenStreetMap.</p>
+  </aside>
+  <div id="map"></div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="data/data.js"></script>
+<script src="data/isokron.js" onerror="void 0"></script>
+<script src="logic.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
